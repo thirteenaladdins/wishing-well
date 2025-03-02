@@ -1,6 +1,3 @@
-# Project ID from the Supabase dashboard
-project_id = "xqwhbkmzxtcnbbhmyxwl"
-
 # Edge Functions configuration
 [functions]
 [functions.payments-webhook]
