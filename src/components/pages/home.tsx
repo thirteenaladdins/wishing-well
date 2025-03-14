@@ -8,17 +8,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Settings, 
-  User, 
-  Zap, 
-  Shield, 
-  Database, 
-  Code, 
-  CheckCircle2, 
-  ArrowRight, 
-  Star, 
-  ChevronRight, 
+import {
+  Settings,
+  User,
+  Zap,
+  Shield,
+  Database,
+  Code,
+  CheckCircle2,
+  ArrowRight,
+  Star,
+  ChevronRight,
   Github,
   Loader2,
   Twitter,
@@ -80,15 +80,15 @@ export default function LandingPage() {
     fetchPlans();
   }, []);
 
-  const fetchPlans = async () => {  
+  const fetchPlans = async () => {
     try {
       // Use the Supabase client to call the Edge Function
       const { data, error } = await supabase.functions.invoke('supabase-functions-get-plans');
-      
+
       if (error) {
         throw error;
       }
-      
+
       setPlans(data || []);
       setError("");
     } catch (error) {
@@ -113,7 +113,7 @@ export default function LandingPage() {
     setIsLoading(true);
     setProcessingPlanId(priceId);
     setError("");
-    
+
     try {
       const { data, error } = await supabase.functions.invoke('supabase-functions-create-checkout', {
         body: {
@@ -162,7 +162,7 @@ export default function LandingPage() {
       currency: currency.toUpperCase(),
       minimumFractionDigits: 2
     });
-    
+
     return formatter.format(amount / 100);
   };
 
@@ -226,7 +226,7 @@ export default function LandingPage() {
       "1GB storage",
       "Community support"
     ];
-    
+
     const proFeatures = [
       ...basicFeatures,
       "Advanced analytics",
@@ -234,7 +234,7 @@ export default function LandingPage() {
       "10GB storage",
       "Custom branding"
     ];
-    
+
     const enterpriseFeatures = [
       ...proFeatures,
       "Dedicated account manager",
@@ -242,7 +242,7 @@ export default function LandingPage() {
       "Unlimited storage",
       "SLA guarantees"
     ];
-    
+
     if (planType.includes("PRO")) return proFeatures;
     if (planType.includes("ENTERPRISE")) return enterpriseFeatures;
     return basicFeatures;
@@ -388,7 +388,7 @@ const { data, error } = await supabase.auth.signUp({
               </div>
             </div>
           </div>
-          
+
           {/* Gradient orbs */}
           <div className="absolute top-1/4 left-0 -z-10 h-[300px] w-[300px] rounded-full bg-gray-200/60 blur-[100px]" />
           <div className="absolute bottom-0 right-0 -z-10 h-[300px] w-[300px] rounded-full bg-gray-400/40 blur-[100px]" />
@@ -441,7 +441,7 @@ const { data, error } = await supabase.auth.signUp({
             {error && (
               <div className="bg-red-100 border border-red-200 text-red-800 px-4 py-3 rounded relative mb-6" role="alert">
                 <span className="block sm:inline">{error}</span>
-                <button 
+                <button
                   className="absolute top-0 bottom-0 right-0 px-4 py-3"
                   onClick={() => setError("")}
                 >
@@ -455,16 +455,6 @@ const { data, error } = await supabase.auth.signUp({
               {plans.map((plan) => (
                 <Card key={plan.id} className="flex flex-col h-full border-gray-200 bg-gradient-to-b from-white to-gray-50 shadow-lg hover:shadow-xl transition-all">
                   <CardHeader className="pb-4">
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-xl font-bold text-black">
-                        {plan.product.split('_')[1] || 'Basic'}
-                      </CardTitle>
-                      {plan.active && 
-                        <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">
-                          Popular
-                        </Badge>
-                      }
-                    </div>
                     <CardDescription className="text-sm text-gray-600">
                       {plan.interval_count === 1 ? 'Monthly' : `Every ${plan.interval_count} ${plan.interval}s`}
                     </CardDescription>
@@ -485,7 +475,7 @@ const { data, error } = await supabase.auth.signUp({
                     </ul>
                   </CardContent>
                   <CardFooter>
-                    <Button 
+                    <Button
                       className="w-full bg-black text-white hover:bg-gray-800"
                       onClick={() => handleCheckout(plan.id)}
                       disabled={isLoading}
@@ -528,9 +518,9 @@ const { data, error } = await supabase.auth.signUp({
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-4">
                       <Avatar>
-                        <AvatarImage 
-                          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${testimonial.avatar}`} 
-                          alt={testimonial.name} 
+                        <AvatarImage
+                          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${testimonial.avatar}`}
+                          alt={testimonial.name}
                         />
                         <AvatarFallback>{testimonial.name[0]}</AvatarFallback>
                       </Avatar>
@@ -607,7 +597,7 @@ const { data, error } = await supabase.auth.signUp({
                 </Button>
               </div>
             </div>
-            
+
             <div>
               <h3 className="font-medium text-lg mb-4 text-black">Product</h3>
               <ul className="space-y-3">
@@ -617,7 +607,7 @@ const { data, error } = await supabase.auth.signUp({
                 <li><Link to="#" className="text-gray-600 hover:text-black">Roadmap</Link></li>
               </ul>
             </div>
-            
+
             <div>
               <h3 className="font-medium text-lg mb-4 text-black">Resources</h3>
               <ul className="space-y-3">
@@ -627,7 +617,7 @@ const { data, error } = await supabase.auth.signUp({
                 <li><Link to="#" className="text-gray-600 hover:text-black">Support</Link></li>
               </ul>
             </div>
-            
+
             <div>
               <h3 className="font-medium text-lg mb-4 text-black">Company</h3>
               <ul className="space-y-3">
@@ -638,9 +628,9 @@ const { data, error } = await supabase.auth.signUp({
               </ul>
             </div>
           </div>
-          
+
           <Separator className="my-8 bg-gray-200" />
-          
+
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-gray-600">
               © {new Date().getFullYear()} Tempo Starter Kit. All rights reserved.
