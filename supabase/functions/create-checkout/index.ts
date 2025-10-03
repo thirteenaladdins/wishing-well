@@ -9,7 +9,7 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-customer-email',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 serve(async (req) => {
@@ -18,13 +18,13 @@ serve(async (req) => {
   }
 
   try {
-    const { price_id, user_id, return_url } = await req.json();
+    const { price_id, session_token, return_url } = await req.json();
     
-    if (!price_id || !user_id || !return_url) {
+    if (!price_id || !session_token || !return_url) {
       throw new Error('Missing required parameters');
     }
 
-    // Create Stripe checkout session
+    // Create Stripe checkout session for one-time payment
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -33,12 +33,12 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: 'subscription',
-      success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
+      mode: 'payment', // Changed from 'subscription' to 'payment' for one-time purchases
+      success_url: `${return_url}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${return_url}?canceled=true`,
-      customer_email: req.headers.get('X-Customer-Email'),
       metadata: {
-        user_id,
+        session_token, // Use session token instead of user_id
+        purchase_type: 'wishes_pack', // Add purchase type for webhook handling
       },
     });
 

@@ -241,10 +241,109 @@ async function handleSubscriptionDeleted(supabaseClient: any, event: any) {
   }
 }
 
+async function handleOneTimePayment(supabaseClient: any, session: any) {
+  console.log('Handling one-time payment:', session.id);
+  console.log('Session metadata:', JSON.stringify(session.metadata, null, 2));
+  
+  const sessionToken = session.metadata?.session_token;
+  const purchaseType = session.metadata?.purchase_type;
+  
+  if (!sessionToken) {
+    console.error('No session_token found in session metadata');
+    return new Response(
+      JSON.stringify({ error: "No session_token in session metadata" }),
+      { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+  
+  try {
+    // Determine how many wishes to add based on purchase type
+    let wishesToAdd = 0;
+    switch (purchaseType) {
+      case 'wishes_pack':
+        wishesToAdd = 10; // 10 wishes pack
+        break;
+      default:
+        wishesToAdd = 10; // Default to 10 wishes
+    }
+    
+    console.log(`Adding ${wishesToAdd} wishes to session ${sessionToken}`);
+    
+    // Add purchased wishes to the session in the database
+    const { error: addWishesError } = await supabaseClient
+      .rpc('add_purchased_wishes', {
+        session_token_param: sessionToken,
+        wishes_to_add: wishesToAdd
+      });
+    
+    if (addWishesError) {
+      console.error('Error adding purchased wishes to session:', addWishesError);
+      throw addWishesError;
+    }
+    
+    // Store the purchase in a separate table for tracking
+    const { error: purchaseError } = await supabaseClient
+      .from('webhook_events')
+      .insert({
+        event_type: 'payment.succeeded',
+        type: 'payment',
+        stripe_event_id: session.id,
+        data: {
+          session_id: session.id,
+          session_token: sessionToken,
+          amount_paid: session.amount_total / 100,
+          currency: session.currency,
+          purchase_type: purchaseType,
+          wishes_added: wishesToAdd,
+          payment_status: 'completed'
+        },
+        created_at: new Date().toISOString(),
+        modified_at: new Date().toISOString()
+      });
+    
+    if (purchaseError) {
+      console.error('Error logging purchase:', purchaseError);
+      // Don't throw here, the main payment was successful
+    }
+    
+    console.log('Successfully processed one-time payment');
+    
+    return new Response(
+      JSON.stringify({ 
+        message: "One-time payment processed successfully",
+        wishes_added: wishesToAdd,
+        session_token: sessionToken
+      }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+    
+  } catch (error) {
+    console.error('Error processing one-time payment:', error);
+    return new Response(
+      JSON.stringify({ error: "Failed to process one-time payment", details: error.message }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+}
+
 async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
   const session = event.data.object;
   console.log('Handling checkout session completed:', session.id);
   console.log('Full session data:', JSON.stringify(session, null, 2));
+  
+  // Handle one-time payments (payment mode) vs subscriptions
+  if (session.mode === 'payment') {
+    return await handleOneTimePayment(supabaseClient, session);
+  }
   
   const subscriptionId = typeof session.subscription === 'string' 
     ? session.subscription 
