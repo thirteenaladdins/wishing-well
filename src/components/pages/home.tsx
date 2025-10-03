@@ -48,6 +48,35 @@ export default function WishingWell() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
+  // Refresh session data from server
+  const refreshSessionData = async (token?: string) => {
+    const sessionToken = token || sessionData.token;
+    if (!sessionToken) return;
+
+    try {
+      const { data, error } = await supabase
+        .rpc("get_or_create_session", { session_token_param: sessionToken });
+
+      if (error) throw error;
+
+      const sessionArray = Array.isArray(data) ? data : data ? [data] : [];
+
+      if (sessionArray.length > 0) {
+        const session = sessionArray[0];
+        setSessionData({
+          token: sessionToken,
+          free_wish_used: session.free_wish_used,
+          purchased_wishes: session.purchased_wishes,
+        });
+      }
+      setSessionLoaded(true);
+    } catch (error) {
+      console.error("Error refreshing session data:", error);
+      setSessionLoaded(true);
+    }
+  };
 
   // Initialize session token
   useEffect(() => {
@@ -57,16 +86,28 @@ export default function WishingWell() {
       localStorage.setItem("wishing_well_session", token);
     }
 
-    const freeWishUsed = localStorage.getItem("free_wish_used") === "true";
-    const purchasedWishes = parseInt(
-      localStorage.getItem("purchased_wishes") || "0",
-    );
-
     setSessionData({
       token,
-      free_wish_used: freeWishUsed,
-      purchased_wishes: purchasedWishes,
+      free_wish_used: false,
+      purchased_wishes: 0,
     });
+    setSessionLoaded(false);
+
+    refreshSessionData(token);
+  }, []);
+
+  // Refresh session data when returning from success page
+  useEffect(() => {
+    const handleFocus = () => {
+      // Refresh session data when user returns to the page
+      refreshSessionData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // Fetch wishes from database
@@ -112,7 +153,7 @@ export default function WishingWell() {
     };
   }, []);
 
-  // Submit new wish
+  // Submit new wish with server-side validation
   const handleSubmitWish = async () => {
     if (!newWish.trim()) {
       toast({
@@ -132,11 +173,19 @@ export default function WishingWell() {
       return;
     }
 
-    if (sessionData.free_wish_used && sessionData.purchased_wishes <= 0) {
+    if (!sessionData.token) {
       toast({
-        title: "No wishes available",
-        description:
-          "You've used your free wish. Purchase more wishes to continue.",
+        title: "Session error",
+        description: "Unable to identify your session. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!sessionLoaded) {
+      toast({
+        title: "Loading session",
+        description: "Please wait while we confirm your remaining wishes.",
         variant: "destructive",
       });
       return;
@@ -145,23 +194,25 @@ export default function WishingWell() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.from("wishes").insert({
-        content: newWish.trim(),
-        session_token: sessionData.token,
-        boost_count: 0,
+      const { error } = await supabase.rpc("make_wish", {
+        session_token_param: sessionData.token,
+        wish_content: newWish.trim(),
       });
 
-      if (error) throw error;
-
-      // Update session data
-      if (!sessionData.free_wish_used) {
-        localStorage.setItem("free_wish_used", "true");
-        setSessionData((prev) => ({ ...prev, free_wish_used: true }));
-      } else {
-        const newCount = sessionData.purchased_wishes - 1;
-        localStorage.setItem("purchased_wishes", newCount.toString());
-        setSessionData((prev) => ({ ...prev, purchased_wishes: newCount }));
+      if (error) {
+        if (error.message?.includes("No wishes available")) {
+          toast({
+            title: "No wishes available",
+            description:
+              "You've used your free wish. Purchase more wishes to continue.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
       }
+
+      await refreshSessionData();
 
       setNewWish("");
       toast({
@@ -182,6 +233,24 @@ export default function WishingWell() {
 
   // Boost existing wish
   const handleBoostWish = async (wishId: string) => {
+    if (!sessionData.token) {
+      toast({
+        title: "Session error",
+        description: "Unable to identify your session. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!sessionLoaded) {
+      toast({
+        title: "Loading session",
+        description: "Please wait while we confirm your remaining wishes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (sessionData.free_wish_used && sessionData.purchased_wishes <= 0) {
       toast({
         title: "No wishes available",
@@ -193,19 +262,25 @@ export default function WishingWell() {
     }
 
     try {
-      const { error } = await supabase.rpc("boost_wish", { wish_id: wishId });
+      const { error } = await supabase.rpc("boost_wish", {
+        wish_id: wishId,
+        session_token_param: sessionData.token,
+      });
 
-      if (error) throw error;
-
-      // Update session data
-      if (!sessionData.free_wish_used) {
-        localStorage.setItem("free_wish_used", "true");
-        setSessionData((prev) => ({ ...prev, free_wish_used: true }));
-      } else {
-        const newCount = sessionData.purchased_wishes - 1;
-        localStorage.setItem("purchased_wishes", newCount.toString());
-        setSessionData((prev) => ({ ...prev, purchased_wishes: newCount }));
+      if (error) {
+        if (error.message?.includes("No wishes available")) {
+          toast({
+            title: "No wishes available",
+            description:
+              "You need wishes to boost. Purchase more wishes to continue.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
       }
+
+      await refreshSessionData();
 
       toast({
         title: "Wish boosted!",
@@ -223,19 +298,36 @@ export default function WishingWell() {
 
   // Purchase wishes via Stripe
   const handlePurchaseWishes = async () => {
+    if (isPurchasing) return;
+    if (!sessionData.token) {
+      toast({
+        title: "Session error",
+        description: "Unable to identify your session. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!sessionLoaded) {
+      toast({
+        title: "Loading session",
+        description: "Please wait while we confirm your remaining wishes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsPurchasing(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "supabase-functions-create-checkout",
-        {
-          body: {
-            price_id: "price_wishes_10_pack", // This would be configured in Stripe
-            session_token: sessionData.token,
-            return_url: window.location.origin,
-          },
+      const priceId = import.meta.env.VITE_STRIPE_PRICE_ID || "price_wishes_10_pack";
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          price_id: priceId,
+          session_token: sessionData.token,
+          return_url: window.location.origin,
         },
-      );
+      });
 
       if (error) throw error;
 
@@ -267,11 +359,14 @@ export default function WishingWell() {
     return "shadow-2xl shadow-yellow-500/80 ring-4 ring-yellow-400 animate-pulse";
   };
 
-  const canMakeWish =
+  const hasWishes =
     !sessionData.free_wish_used || sessionData.purchased_wishes > 0;
-  const wishesRemaining = sessionData.free_wish_used
-    ? sessionData.purchased_wishes
-    : 1;
+  const canMakeWish = sessionLoaded && hasWishes;
+  const wishesRemaining = sessionLoaded
+    ? sessionData.free_wish_used
+      ? sessionData.purchased_wishes
+      : 1
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
@@ -298,28 +393,23 @@ export default function WishingWell() {
               <div className="flex items-center space-x-2 bg-purple-100 rounded-full px-3 py-1">
                 <Coins className="h-4 w-4 text-purple-600" />
                 <span className="text-sm font-medium text-purple-700">
-                  {wishesRemaining} wish{wishesRemaining !== 1 ? "es" : ""} left
+                  {sessionLoaded ? (
+                    <>
+                      {wishesRemaining} wish{wishesRemaining !== 1 ? "es" : ""} left
+                    </>
+                  ) : (
+                    "Checking wishes..."
+                  )}
                 </span>
               </div>
 
-              {user ? (
+              {false && user ? (
                 <Link to="/dashboard">
                   <Button variant="outline" size="sm">
                     Dashboard
                   </Button>
                 </Link>
-              ) : (
-                <div className="flex space-x-2">
-                  <Link to="/login">
-                    <Button variant="ghost" size="sm">
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link to="/signup">
-                    <Button size="sm">Sign Up</Button>
-                  </Link>
-                </div>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -348,7 +438,7 @@ export default function WishingWell() {
                     onChange={(e) => setNewWish(e.target.value)}
                     maxLength={200}
                     className="pr-16 text-lg py-3 border-purple-200 focus:border-purple-400 focus:ring-purple-400"
-                    disabled={!canMakeWish}
+                    disabled={!sessionLoaded || !hasWishes}
                   />
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
                     {newWish.length}/200
@@ -358,7 +448,7 @@ export default function WishingWell() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
                     onClick={handleSubmitWish}
-                    disabled={!canMakeWish || !newWish.trim() || isSubmitting}
+                    disabled={!sessionLoaded || !hasWishes || !newWish.trim() || isSubmitting}
                     className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                   >
                     {isSubmitting ? (
@@ -374,7 +464,7 @@ export default function WishingWell() {
                     )}
                   </Button>
 
-                  {!canMakeWish && (
+                  {sessionLoaded && !hasWishes && (
                     <Button
                       onClick={handlePurchaseWishes}
                       disabled={isPurchasing}
@@ -389,14 +479,16 @@ export default function WishingWell() {
                       ) : (
                         <>
                           <ShoppingCart className="mr-2 h-4 w-4" />
-                          Buy 10 Wishes - £1
+                          {import.meta.env.DEV || window.location.hostname === 'localhost' 
+                            ? 'Buy 10 Wishes - £1 (Dev Mode)' 
+                            : 'Buy 10 Wishes - £1'}
                         </>
                       )}
                     </Button>
                   )}
                 </div>
 
-                {!canMakeWish && (
+                {sessionLoaded && !hasWishes && (
                   <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                     <p className="text-yellow-800 text-sm">
                       You've used your free wish! Purchase more wishes to
@@ -465,7 +557,7 @@ export default function WishingWell() {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleBoostWish(wish.id)}
-                        disabled={!canMakeWish}
+                        disabled={!sessionLoaded || !hasWishes}
                         className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
                       >
                         <Heart className="h-4 w-4 mr-1" />
@@ -484,7 +576,9 @@ export default function WishingWell() {
         </div>
 
         {/* Purchase Section */}
-        {sessionData.free_wish_used && sessionData.purchased_wishes <= 3 && (
+        {sessionLoaded &&
+          sessionData.free_wish_used &&
+          sessionData.purchased_wishes <= 3 && (
           <div className="max-w-2xl mx-auto mt-12">
             <Card className="bg-gradient-to-r from-purple-100 to-pink-100 border-purple-200">
               <CardContent className="p-6 text-center">
@@ -509,7 +603,9 @@ export default function WishingWell() {
                   ) : (
                     <>
                       <Plus className="mr-2 h-4 w-4" />
-                      Buy 10 Wishes - £1
+                      {import.meta.env.DEV || window.location.hostname === 'localhost' 
+                        ? 'Buy 10 Wishes - £1 (Dev Mode)' 
+                        : 'Buy 10 Wishes - £1'}
                     </>
                   )}
                 </Button>
