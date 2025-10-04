@@ -29,9 +29,24 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER IF NOT EXISTS update_wishes_updated_at
-  BEFORE UPDATE ON wishes
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_wishes_updated_at') THEN
+    CREATE TRIGGER update_wishes_updated_at
+      BEFORE UPDATE ON wishes
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END
+$$;
 
-alter publication supabase_realtime add table wishes;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'wishes'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE wishes;
+  END IF;
+END
+$$;

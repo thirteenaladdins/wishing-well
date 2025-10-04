@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -49,6 +50,7 @@ export default function WishingWell() {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [showRipple, setShowRipple] = useState(false);
 
   // Refresh session data from server
   const refreshSessionData = async (token?: string) => {
@@ -215,6 +217,11 @@ export default function WishingWell() {
       await refreshSessionData();
 
       setNewWish("");
+      
+      // Show ripple animation
+      setShowRipple(true);
+      setTimeout(() => setShowRipple(false), 2000);
+      
       toast({
         title: "Wish submitted!",
         description: "Your wish has been added to the wishing well.",
@@ -369,30 +376,37 @@ export default function WishingWell() {
     : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-purple-200 sticky top-0 z-50">
+    <div 
+      className="min-h-screen relative flex flex-col"
+      style={{
+        background: "url('/grass-background.png') no-repeat center center, linear-gradient(to bottom, #87CEEB, #98FB98)",
+        backgroundSize: "cover",
+        backgroundAttachment: "fixed"
+      }}
+    >
+      {/* Header - Minimal */}
+      <header className="bg-transparent relative z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <Wand2 className="h-8 w-8 text-purple-600" />
-                <Sparkles className="h-4 w-4 text-yellow-500 absolute -top-1 -right-1" />
+                <Wand2 className="h-8 w-8 text-white drop-shadow-lg" />
+                <Sparkles className="h-4 w-4 text-yellow-300 absolute -top-1 -right-1 drop-shadow-lg" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold text-white drop-shadow-lg">
                   Wishing Well
                 </h1>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-white/90 drop-shadow-lg">
                   Make your dreams come true
                 </p>
               </div>
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 bg-purple-100 rounded-full px-3 py-1">
-                <Coins className="h-4 w-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-700">
+              <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 border border-white/30">
+                <Coins className="h-4 w-4 text-yellow-300" />
+                <span className="text-sm font-medium text-white drop-shadow-lg">
                   {sessionLoaded ? (
                     <>
                       {wishesRemaining} wish{wishesRemaining !== 1 ? "es" : ""} left
@@ -403,73 +417,109 @@ export default function WishingWell() {
                 </span>
               </div>
 
-              {false && user ? (
-                <Link to="/dashboard">
-                  <Button variant="outline" size="sm">
-                    Dashboard
-                  </Button>
-                </Link>
-              ) : null}
+              <Link to="/wishes">
+                <Button variant="outline" size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30">
+                  ✨ See what others are wishing
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      {/* The Well */}
+      <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 z-20">
+        <img 
+          src="/wishing-well-asset.png" 
+          alt="Wishing Well" 
+          className="w-full h-full object-contain"
+          onLoad={() => console.log('Well image loaded successfully')}
+          onError={(e) => {
+            console.log('Image failed to load:', e);
+          }}
+        />
+      </div>
+
+      {/* Main Well Area */}
+      <main className="flex-1 flex flex-col items-center justify-end px-4 relative z-10 pb-16">
+        {/* Magical sparkles */}
+        <div className="relative mb-8">
+          <div className="flex items-center justify-center space-x-8">
+            <Sparkles className="h-8 w-8 text-yellow-300 animate-pulse" />
+            <Star className="h-6 w-6 text-yellow-400 animate-bounce" />
+            <Sparkles className="h-7 w-7 text-purple-300 animate-pulse" />
+            <Star className="h-5 w-5 text-pink-300 animate-bounce" />
+          </div>
+        </div>
+
         {/* Wish Input Section */}
-        <div className="max-w-2xl mx-auto mb-12">
-          <Card className="bg-white/70 backdrop-blur-sm border-purple-200 shadow-lg">
+        <div className="max-w-md w-full">
+          <Card className="bg-white/80 backdrop-blur-sm border-purple-200 shadow-xl">
             <CardContent className="p-6">
               <div className="text-center mb-6">
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">
                   Make a Wish
                 </h2>
                 <p className="text-gray-600">
-                  Share your dreams with the world. Each wish can be boosted by
-                  others to make it glow brighter.
+                  Whisper your deepest desire into the well
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div className="relative">
-                  <Input
-                    placeholder="What do you wish for? (200 characters max)"
+                  <Textarea
+                    placeholder="What do you wish for?"
                     value={newWish}
                     onChange={(e) => setNewWish(e.target.value)}
                     maxLength={200}
-                    className="pr-16 text-lg py-3 border-purple-200 focus:border-purple-400 focus:ring-purple-400"
+                    className="pr-16 text-base py-3 border-purple-200 focus:border-purple-400 focus:ring-purple-400 resize-none min-h-[50px] max-h-[120px]"
                     disabled={!sessionLoaded || !hasWishes}
+                    rows={2}
+                    style={{
+                      height: 'auto',
+                      overflow: 'hidden'
+                    }}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                    }}
                   />
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
+                  <div className="absolute right-3 top-3 text-sm text-gray-400">
                     {newWish.length}/200
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    onClick={handleSubmitWish}
-                    disabled={!sessionLoaded || !hasWishes || !newWish.trim() || isSubmitting}
-                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <Star className="mr-2 h-4 w-4" />
-                        Make Wish
-                      </>
-                    )}
-                  </Button>
+                <Button
+                  onClick={handleSubmitWish}
+                  disabled={!sessionLoaded || !hasWishes || !newWish.trim() || isSubmitting}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-3 text-lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Making wish...
+                    </>
+                  ) : (
+                    <>
+                      <Star className="mr-2 h-5 w-5" />
+                      ★ Make Wish
+                    </>
+                  )}
+                </Button>
 
-                  {sessionLoaded && !hasWishes && (
+                {sessionLoaded && !hasWishes && (
+                  <div className="space-y-3">
+                    <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <p className="text-yellow-800 text-sm">
+                        You've used your free wish! Purchase more wishes to continue.
+                      </p>
+                    </div>
                     <Button
                       onClick={handlePurchaseWishes}
                       disabled={isPurchasing}
                       variant="outline"
-                      className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                      className="w-full border-purple-300 text-purple-700 hover:bg-purple-50"
                     >
                       {isPurchasing ? (
                         <>
@@ -485,134 +535,12 @@ export default function WishingWell() {
                         </>
                       )}
                     </Button>
-                  )}
-                </div>
-
-                {sessionLoaded && !hasWishes && (
-                  <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <p className="text-yellow-800 text-sm">
-                      You've used your free wish! Purchase more wishes to
-                      continue making and boosting wishes.
-                    </p>
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Wishes Wall */}
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">
-              Community Wishes
-            </h3>
-            <p className="text-gray-600">
-              Boost wishes you believe in to help them glow brighter and rise to
-              the top
-            </p>
-          </div>
-
-          {loading ? (
-            <div className="text-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-purple-600" />
-              <p className="text-gray-600 mt-2">Loading wishes...</p>
-            </div>
-          ) : wishes.length === 0 ? (
-            <div className="text-center py-12">
-              <Sparkles className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600 text-lg">
-                No wishes yet. Be the first to make a wish!
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {wishes.map((wish) => (
-                <Card
-                  key={wish.id}
-                  className={`bg-white/80 backdrop-blur-sm border-purple-200 hover:border-purple-300 transition-all duration-300 ${getWishGlow(wish.boost_count)}`}
-                >
-                  <CardContent className="p-4">
-                    <div className="mb-3">
-                      <p className="text-gray-800 leading-relaxed">
-                        {wish.content}
-                      </p>
-                    </div>
-
-                    <Separator className="my-3" />
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant="secondary"
-                          className="bg-purple-100 text-purple-700 hover:bg-purple-200"
-                        >
-                          <Zap className="h-3 w-3 mr-1" />
-                          {wish.boost_count} boost
-                          {wish.boost_count !== 1 ? "s" : ""}
-                        </Badge>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleBoostWish(wish.id)}
-                        disabled={!sessionLoaded || !hasWishes}
-                        className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                      >
-                        <Heart className="h-4 w-4 mr-1" />
-                        Boost
-                      </Button>
-                    </div>
-
-                    <div className="mt-2 text-xs text-gray-500">
-                      {new Date(wish.created_at).toLocaleDateString()}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Purchase Section */}
-        {sessionLoaded &&
-          sessionData.free_wish_used &&
-          sessionData.purchased_wishes <= 3 && (
-          <div className="max-w-2xl mx-auto mt-12">
-            <Card className="bg-gradient-to-r from-purple-100 to-pink-100 border-purple-200">
-              <CardContent className="p-6 text-center">
-                <Coins className="h-12 w-12 mx-auto text-purple-600 mb-4" />
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                  Need More Wishes?
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Get 10 more wishes for just £1. Support the community and keep
-                  the magic alive!
-                </p>
-                <Button
-                  onClick={handlePurchaseWishes}
-                  disabled={isPurchasing}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                >
-                  {isPurchasing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      {import.meta.env.DEV || window.location.hostname === 'localhost' 
-                        ? 'Buy 10 Wishes - £1 (Dev Mode)' 
-                        : 'Buy 10 Wishes - £1'}
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </main>
 
       <Toaster />

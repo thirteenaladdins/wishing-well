@@ -35,3 +35,4 @@ async function resetWishes() {
 
 // Run the reset
 resetWishes();
+

@@ -6,6 +6,7 @@ import SignUpForm from "./components/auth/SignUpForm";
 import Dashboard from "./components/pages/dashboard";
 import Success from "./components/pages/success";
 import Home from "./components/pages/home";
+import WishesFeed from "./components/pages/wishes";
 import { AuthProvider, useAuth } from "../supabase/auth";
 import { Toaster } from "./components/ui/toaster";
 
@@ -28,6 +29,7 @@ function AppRoutes() {
     <>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/wishes" element={<WishesFeed />} />
         <Route path="/login" element={<LoginForm />} />
         <Route path="/signup" element={<SignUpForm />} />
         <Route
