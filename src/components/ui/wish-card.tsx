@@ -16,6 +16,7 @@ interface WishCardProps {
   showRecentBoosts?: boolean;
   className?: string;
   isTopWish?: boolean;
+  hasBeenTopBefore?: boolean;
 }
 
 export function WishCard({ 
@@ -26,22 +27,23 @@ export function WishCard({
   showScore = false,
   showRecentBoosts = false,
   className = "",
-  isTopWish = false
+  isTopWish = false,
+  hasBeenTopBefore = false
 }: WishCardProps) {
   const { toast } = useToast();
   const [isAnimating, setIsAnimating] = useState(false);
   const [isTopPulsing, setIsTopPulsing] = useState(false);
 
-  // Trigger pulse animation when wish becomes top wish
+  // Trigger pulse animation when wish becomes top wish for the first time
   useEffect(() => {
-    if (isTopWish) {
+    if (isTopWish && !hasBeenTopBefore) {
       setIsTopPulsing(true);
       const timer = setTimeout(() => {
         setIsTopPulsing(false);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [isTopWish]);
+  }, [isTopWish, hasBeenTopBefore]);
 
   const handleBoost = async () => {
     if (!onBoost || !canBoost || isBoosting) return;

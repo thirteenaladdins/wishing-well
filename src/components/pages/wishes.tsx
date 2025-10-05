@@ -37,6 +37,7 @@ export default function WishesFeed() {
   const [loading, setLoading] = useState(true);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [boostingWishId, setBoostingWishId] = useState<string | null>(null);
+  const [topWishesSeen, setTopWishesSeen] = useState<Set<string>>(new Set());
 
   // Refresh session data from server
   const refreshSessionData = async (token?: string) => {
@@ -66,12 +67,23 @@ export default function WishesFeed() {
     }
   };
 
-  // Initialize session token
+  // Initialize session token and load top wishes seen
   useEffect(() => {
     let token = localStorage.getItem("wishing_well_session");
     if (!token) {
       token = "session_" + Math.random().toString(36).substr(2, 9) + Date.now();
       localStorage.setItem("wishing_well_session", token);
+    }
+
+    // Load previously seen top wishes
+    const savedTopWishes = localStorage.getItem("wishing_well_top_wishes_seen");
+    if (savedTopWishes) {
+      try {
+        const topWishesArray = JSON.parse(savedTopWishes);
+        setTopWishesSeen(new Set(topWishesArray));
+      } catch (error) {
+        console.error("Error loading top wishes seen:", error);
+      }
     }
 
     setSessionData({
@@ -90,6 +102,17 @@ export default function WishesFeed() {
       setLoading(true);
       const data = await fetchWishes({ tab, limit: 60 });
       setWishes(data);
+      
+      // Track the current top wish
+      if (data.length > 0 && tab !== 'new') {
+        const currentTopWishId = data[0].id;
+        setTopWishesSeen(prev => {
+          const newSet = new Set(prev).add(currentTopWishId);
+          // Save to localStorage
+          localStorage.setItem("wishing_well_top_wishes_seen", JSON.stringify([...newSet]));
+          return newSet;
+        });
+      }
     } catch (error) {
       console.error("Error fetching wishes:", error);
       toast({
@@ -323,7 +346,8 @@ export default function WishesFeed() {
                 isBoosting={boostingWishId === wish.id}
                 showScore={activeTab === 'hot'}
                 showRecentBoosts={activeTab === 'rising'}
-                isTopWish={index === 0}
+                isTopWish={index === 0 && activeTab !== 'new'}
+                hasBeenTopBefore={topWishesSeen.has(wish.id)}
               />
             ))}
           </div>
