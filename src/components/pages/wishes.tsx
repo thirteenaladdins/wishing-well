@@ -38,6 +38,7 @@ export default function WishesFeed() {
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [boostingWishId, setBoostingWishId] = useState<string | null>(null);
   const [topWishesSeen, setTopWishesSeen] = useState<Set<string>>(new Set());
+  const [currentTopWishId, setCurrentTopWishId] = useState<string | null>(null);
 
   // Refresh session data from server
   const refreshSessionData = async (token?: string) => {
@@ -103,15 +104,23 @@ export default function WishesFeed() {
       const data = await fetchWishes({ tab, limit: 60 });
       setWishes(data);
       
-      // Track the current top wish
+      // Track the current top wish and determine if it should flash
       if (data.length > 0 && tab !== 'new') {
-        const currentTopWishId = data[0].id;
-        setTopWishesSeen(prev => {
-          const newSet = new Set(prev).add(currentTopWishId);
-          // Save to localStorage
-          localStorage.setItem("wishing_well_top_wishes_seen", JSON.stringify([...newSet]));
-          return newSet;
-        });
+        const newTopWishId = data[0].id;
+        const previousTopWishId = currentTopWishId;
+        
+        // Update current top wish
+        setCurrentTopWishId(newTopWishId);
+        
+        // Only add to seen set if this is a new top wish (not just tab switching)
+        if (newTopWishId !== previousTopWishId) {
+          setTopWishesSeen(prev => {
+            const newSet = new Set(prev).add(newTopWishId);
+            // Save to localStorage
+            localStorage.setItem("wishing_well_top_wishes_seen", JSON.stringify([...newSet]));
+            return newSet;
+          });
+        }
       }
     } catch (error) {
       console.error("Error fetching wishes:", error);
@@ -347,7 +356,7 @@ export default function WishesFeed() {
                 showScore={activeTab === 'hot'}
                 showRecentBoosts={activeTab === 'rising'}
                 isTopWish={index === 0 && activeTab !== 'new'}
-                hasBeenTopBefore={topWishesSeen.has(wish.id)}
+                shouldFlash={index === 0 && activeTab !== 'new' && topWishesSeen.has(wish.id)}
               />
             ))}
           </div>
