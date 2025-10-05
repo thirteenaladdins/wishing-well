@@ -135,10 +135,10 @@ serve(async (req) => {
       }
     }
 
-    // Call the boost_wish function
+    // Call the boost_wish function that consumes wishes
     const { error: boostError } = await supabaseClient.rpc('boost_wish', {
-      p_wish_id: wishId,
-      p_who: who || null
+      wish_id: wishId,
+      session_token_param: who || 'anonymous'
     })
 
     if (boostError) {

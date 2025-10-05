@@ -7,7 +7,7 @@ import { WishCard } from "@/components/ui/wish-card";
 import { supabase } from "../../../supabase/supabase";
 import { useAuth } from "../../../supabase/auth";
 import { fetchWishes, Wish, WishTab } from "@/lib/api/fetchWishes";
-import { boostWish, openBoostCheckout } from "@/lib/stripe";
+import { openBoostCheckout } from "@/lib/stripe";
 import {
   Sparkles,
   Star,
@@ -39,6 +39,17 @@ export default function WishesFeed() {
   const [boostingWishId, setBoostingWishId] = useState<string | null>(null);
   const [topWishesSeen, setTopWishesSeen] = useState<Set<string>>(new Set());
   const [currentTopWishId, setCurrentTopWishId] = useState<string | null>(null);
+  const [sessionTopWish, setSessionTopWish] = useState<{ wishId: string | null; hasFlashed: boolean }>(() => {
+    try {
+      const saved = localStorage.getItem("wishing_well_session_top_wish");
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error("Error loading session top wish:", error);
+    }
+    return { wishId: null, hasFlashed: false };
+  });
 
   // Refresh session data from server
   const refreshSessionData = async (token?: string) => {
@@ -87,6 +98,8 @@ export default function WishesFeed() {
       }
     }
 
+    // sessionTopWish is now loaded synchronously via lazy initializer above
+
     setSessionData({
       token,
       free_wish_used: false,
@@ -112,14 +125,29 @@ export default function WishesFeed() {
         // Update current top wish
         setCurrentTopWishId(newTopWishId);
         
-        // Only add to seen set if this is a new top wish (not just tab switching)
-        if (newTopWishId !== previousTopWishId) {
+        // Check if this is a new top wish (different from current session top wish)
+        if (newTopWishId !== sessionTopWish.wishId) {
+          // New wish has taken the top spot - reset the old one and set up the new one
+          setSessionTopWish({
+            wishId: newTopWishId,
+            hasFlashed: false
+          });
+          
+          // Save to localStorage
+          localStorage.setItem("wishing_well_session_top_wish", JSON.stringify({
+            wishId: newTopWishId,
+            hasFlashed: false
+          }));
+          
+          // Add to seen set for the old logic (keeping for compatibility)
           setTopWishesSeen(prev => {
             const newSet = new Set(prev).add(newTopWishId);
-            // Save to localStorage
             localStorage.setItem("wishing_well_top_wishes_seen", JSON.stringify([...newSet]));
             return newSet;
           });
+        } else {
+          // Same top wish - just update the current top wish ID for tracking
+          // Don't reset the session top wish or it will flash again
         }
       }
     } catch (error) {
@@ -157,6 +185,18 @@ export default function WishesFeed() {
   // Handle tab change
   const handleTabChange = (tab: WishTab) => {
     setActiveTab(tab);
+  };
+
+  // Handle flash completion - mark the current top wish as flashed
+  const handleFlashComplete = () => {
+    if (sessionTopWish.wishId && !sessionTopWish.hasFlashed) {
+      const updatedSessionTopWish = {
+        ...sessionTopWish,
+        hasFlashed: true
+      };
+      setSessionTopWish(updatedSessionTopWish);
+      localStorage.setItem("wishing_well_session_top_wish", JSON.stringify(updatedSessionTopWish));
+    }
   };
 
   // Boost existing wish
@@ -210,7 +250,25 @@ export default function WishesFeed() {
 
     try {
       setBoostingWishId(wishId);
-      await boostWish(wishId, sessionData.token);
+      
+      // Call boost_wish RPC function directly (not Edge Function)
+      const { error } = await supabase.rpc("boost_wish", {
+        session_token_param: sessionData.token,
+        wish_id: wishId,
+      });
+
+      if (error) {
+        if (error.message?.includes("No wishes available")) {
+          toast({
+            title: "No wishes available",
+            description: "You need wishes to boost. Purchase more wishes to continue.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
+
       await refreshSessionData();
       await fetchWishesData(activeTab);
       
@@ -249,8 +307,8 @@ export default function WishesFeed() {
         backgroundAttachment: "fixed"
       }}
     >
-      {/* The Well */}
-      <div className="fixed top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 z-10">
+      {/* The Well (smaller on mobile) */}
+      <div className="hidden sm:block fixed top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 md:w-96 md:h-96 z-10">
         <img 
           src="/wishing-well-asset.png" 
           alt="Wishing Well" 
@@ -265,7 +323,7 @@ export default function WishesFeed() {
       {/* Header */}
       <header className="bg-transparent relative z-50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center space-x-3">
               <Link to="/">
                 <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
@@ -292,7 +350,18 @@ export default function WishesFeed() {
 
             <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 border border-white/30">
               <Coins className="h-4 w-4 text-yellow-300" />
-              <span className="text-sm font-medium text-white drop-shadow-lg">
+              {/* Mobile (short) */}
+              <span className="sm:hidden text-sm font-medium text-white drop-shadow-lg">
+                {sessionLoaded ? (
+                  <>
+                    {hasWishes ? (sessionData.free_wish_used ? sessionData.purchased_wishes : 1) : 0} left
+                  </>
+                ) : (
+                  "Checking..."
+                )}
+              </span>
+              {/* Desktop (full) */}
+              <span className="hidden sm:inline text-sm font-medium text-white drop-shadow-lg">
                 {sessionLoaded ? (
                   <>
                     {hasWishes ? (sessionData.free_wish_used ? sessionData.purchased_wishes : 1) : 0} wish{hasWishes ? (sessionData.free_wish_used ? sessionData.purchased_wishes : 1) !== 1 ? "es" : "" : "es"} left
@@ -307,15 +376,8 @@ export default function WishesFeed() {
       </header>
 
       {/* Main content */}
-      <main className="container mx-auto px-4 py-8 relative z-20 mt-32">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white drop-shadow-lg mb-2">
-            Community Wishes
-          </h2>
-          <p className="text-white/90 drop-shadow-lg">
-            Boost wishes you believe in to help them glow brighter and rise to the top
-          </p>
-        </div>
+      <main className="container mx-auto px-4 py-6 sm:py-8 relative z-20 mt-8 sm:mt-32">
+        {/* Removed duplicate subtitle to avoid repeating header text */}
 
         {/* Feed Tabs */}
         <div className="max-w-4xl mx-auto mb-8">
@@ -356,7 +418,9 @@ export default function WishesFeed() {
                 showScore={activeTab === 'hot'}
                 showRecentBoosts={activeTab === 'rising'}
                 isTopWish={index === 0 && activeTab !== 'new'}
-                shouldFlash={index === 0 && activeTab !== 'new' && topWishesSeen.has(wish.id)}
+                isSecondWish={index === 1 && activeTab !== 'new'}
+                shouldFlash={index === 0 && activeTab !== 'new' && sessionTopWish.wishId === wish.id && !sessionTopWish.hasFlashed}
+                onFlashComplete={handleFlashComplete}
               />
             ))}
           </div>

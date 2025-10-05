@@ -16,7 +16,9 @@ interface WishCardProps {
   showRecentBoosts?: boolean;
   className?: string;
   isTopWish?: boolean;
+  isSecondWish?: boolean;
   shouldFlash?: boolean;
+  onFlashComplete?: () => void;
 }
 
 export function WishCard({ 
@@ -28,7 +30,9 @@ export function WishCard({
   showRecentBoosts = false,
   className = "",
   isTopWish = false,
-  shouldFlash = false
+  isSecondWish = false,
+  shouldFlash = false,
+  onFlashComplete
 }: WishCardProps) {
   const { toast } = useToast();
   const [isAnimating, setIsAnimating] = useState(false);
@@ -40,10 +44,14 @@ export function WishCard({
       setIsTopPulsing(true);
       const timer = setTimeout(() => {
         setIsTopPulsing(false);
+        // Call the callback to mark the wish as flashed
+        if (onFlashComplete) {
+          onFlashComplete();
+        }
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [shouldFlash]);
+  }, [shouldFlash, onFlashComplete]);
 
   const handleBoost = async () => {
     if (!onBoost || !canBoost || isBoosting) return;
@@ -79,9 +87,9 @@ export function WishCard({
   const getWishGlow = (boostCount: number) => {
     if (boostCount === 0) return "";
     if (boostCount < 5) return "shadow-md shadow-yellow-200/50";
-    if (boostCount < 10) return "shadow-lg shadow-yellow-300/60 ring-1 ring-yellow-200";
-    if (boostCount < 20) return "shadow-xl shadow-yellow-400/70 ring-2 ring-yellow-300";
-    return "shadow-2xl shadow-yellow-500/80 ring-4 ring-yellow-400";
+    if (boostCount < 10) return "shadow-lg shadow-yellow-300/60";
+    if (boostCount < 20) return "shadow-xl shadow-yellow-400/70";
+    return "shadow-2xl shadow-yellow-500/80";
   };
 
   const getBoostButtonVariant = (boostCount: number) => {
@@ -95,6 +103,8 @@ export function WishCard({
       className={cn(
         "bg-white/80 backdrop-blur-sm hover:bg-white/90 transition-all duration-200",
         getWishGlow(wish.boosts),
+        isTopWish && "ring-4 ring-yellow-400",
+        !isTopWish && isSecondWish && "ring-2 ring-yellow-300",
         isAnimating && "animate-pulse",
         isTopPulsing && "animate-pulse",
         className

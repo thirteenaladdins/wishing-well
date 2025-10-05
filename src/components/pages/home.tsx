@@ -270,8 +270,8 @@ export default function WishingWell() {
 
     try {
       const { error } = await supabase.rpc("boost_wish", {
-        wish_id: wishId,
         session_token_param: sessionData.token,
+        wish_id: wishId,
       });
 
       if (error) {
@@ -387,7 +387,7 @@ export default function WishingWell() {
       {/* Header - Minimal */}
       <header className="bg-transparent relative z-50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center space-x-3">
               <div className="relative">
                 <Wand2 className="h-8 w-8 text-white drop-shadow-lg" />
@@ -403,10 +403,21 @@ export default function WishingWell() {
               </div>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3 sm:space-x-4 w-full sm:w-auto">
               <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 border border-white/30">
                 <Coins className="h-4 w-4 text-yellow-300" />
-                <span className="text-sm font-medium text-white drop-shadow-lg">
+                {/* Mobile (short) */}
+                <span className="sm:hidden text-sm font-medium text-white drop-shadow-lg">
+                  {sessionLoaded ? (
+                    <>
+                      {wishesRemaining} left
+                    </>
+                  ) : (
+                    "Checking..."
+                  )}
+                </span>
+                {/* Desktop (full) */}
+                <span className="hidden sm:inline text-sm font-medium text-white drop-shadow-lg">
                   {sessionLoaded ? (
                     <>
                       {wishesRemaining} wish{wishesRemaining !== 1 ? "es" : ""} left
@@ -417,8 +428,8 @@ export default function WishingWell() {
                 </span>
               </div>
 
-              <Link to="/wishes">
-                <Button variant="outline" size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30">
+              <Link to="/wishes" className="hidden sm:inline-block">
+                <Button variant="outline" size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30 hidden sm:inline-flex">
                   ✨ See what others are wishing
                 </Button>
               </Link>
@@ -428,7 +439,7 @@ export default function WishingWell() {
       </header>
 
       {/* The Well */}
-      <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 z-20">
+      <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-56 h-56 sm:w-80 sm:h-80 md:w-96 md:h-96 z-20">
         <img 
           src="/wishing-well-asset.png" 
           alt="Wishing Well" 
@@ -463,50 +474,59 @@ export default function WishingWell() {
                 <p className="text-gray-600">
                   Whisper your deepest desire into the well
                 </p>
+                <div className="mt-3">
+                  <Link to="/wishes" className="text-sm text-purple-700 hover:text-purple-800 underline">
+                    See other people's wishes →
+                  </Link>
+                </div>
               </div>
 
               <div className="space-y-4">
-                <div className="relative">
-                  <Textarea
-                    placeholder="What do you wish for?"
-                    value={newWish}
-                    onChange={(e) => setNewWish(e.target.value)}
-                    maxLength={200}
-                    className="pr-16 text-base py-3 border-purple-200 focus:border-purple-400 focus:ring-purple-400 resize-none min-h-[50px] max-h-[120px]"
-                    disabled={!sessionLoaded || !hasWishes}
-                    rows={2}
-                    style={{
-                      height: 'auto',
-                      overflow: 'hidden'
-                    }}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = 'auto';
-                      target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                    }}
-                  />
-                  <div className="absolute right-3 top-3 text-sm text-gray-400">
-                    {newWish.length}/200
-                  </div>
-                </div>
+                {hasWishes && (
+                  <>
+                    <div className="relative">
+                      <Textarea
+                        placeholder="What do you wish for?"
+                        value={newWish}
+                        onChange={(e) => setNewWish(e.target.value)}
+                        maxLength={200}
+                        className="pr-16 text-base py-3 border-purple-200 focus:border-purple-400 focus:ring-purple-400 resize-none min-h-[50px] max-h-[120px]"
+                        disabled={!sessionLoaded}
+                        rows={2}
+                        style={{
+                          height: 'auto',
+                          overflow: 'hidden'
+                        }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                        }}
+                      />
+                      <div className="absolute right-3 top-3 text-sm text-gray-400">
+                        {newWish.length}/200
+                      </div>
+                    </div>
 
-                <Button
-                  onClick={handleSubmitWish}
-                  disabled={!sessionLoaded || !hasWishes || !newWish.trim() || isSubmitting}
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-3 text-lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Making wish...
-                    </>
-                  ) : (
-                    <>
-                      <Star className="mr-2 h-5 w-5" />
-                      ★ Make Wish
-                    </>
-                  )}
-                </Button>
+                    <Button
+                      onClick={handleSubmitWish}
+                      disabled={!sessionLoaded || !newWish.trim() || isSubmitting}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-3 text-lg"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Making wish...
+                        </>
+                      ) : (
+                        <>
+                          <Star className="mr-2 h-5 w-5" />
+                          ★ Make Wish
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
 
                 {sessionLoaded && !hasWishes && (
                   <div className="space-y-3">

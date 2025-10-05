@@ -39,6 +39,8 @@ CREATE INDEX IF NOT EXISTS idx_wishes_boosts_wish_time ON public.wishes_boosts (
 CREATE INDEX IF NOT EXISTS idx_wishes_boosts_who ON public.wishes_boosts (who, created_at DESC);
 
 -- ---------- Atomic boost function ----------
+-- Note: This function is overridden by the secure version in 20240901000000_secure_wishes_and_sessions.sql
+-- which properly consumes wishes. This is kept for compatibility with the wishes_boosts table.
 CREATE OR REPLACE FUNCTION public.boost_wish(p_wish_id UUID, p_who TEXT DEFAULT NULL)
 RETURNS VOID
 LANGUAGE plpgsql
