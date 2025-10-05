@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,7 @@ interface WishCardProps {
   showScore?: boolean;
   showRecentBoosts?: boolean;
   className?: string;
+  isTopWish?: boolean;
 }
 
 export function WishCard({ 
@@ -24,10 +25,23 @@ export function WishCard({
   isBoosting = false,
   showScore = false,
   showRecentBoosts = false,
-  className = ""
+  className = "",
+  isTopWish = false
 }: WishCardProps) {
   const { toast } = useToast();
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isTopPulsing, setIsTopPulsing] = useState(false);
+
+  // Trigger pulse animation when wish becomes top wish
+  useEffect(() => {
+    if (isTopWish) {
+      setIsTopPulsing(true);
+      const timer = setTimeout(() => {
+        setIsTopPulsing(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isTopWish]);
 
   const handleBoost = async () => {
     if (!onBoost || !canBoost || isBoosting) return;
@@ -38,18 +52,9 @@ export function WishCard({
       // Trigger pulse animation
       setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), 1000);
-      
-      toast({
-        title: "Wish boosted!",
-        description: "You've added power to this wish.",
-      });
-    } catch (error) {
-      console.error("Error boosting wish:", error);
-      toast({
-        title: "Error",
-        description: "Failed to boost wish. Please try again.",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      // Re-throw the error so the parent component can handle the toast
+      throw error;
     }
   };
 
@@ -74,7 +79,7 @@ export function WishCard({
     if (boostCount < 5) return "shadow-md shadow-yellow-200/50";
     if (boostCount < 10) return "shadow-lg shadow-yellow-300/60 ring-1 ring-yellow-200";
     if (boostCount < 20) return "shadow-xl shadow-yellow-400/70 ring-2 ring-yellow-300";
-    return "shadow-2xl shadow-yellow-500/80 ring-4 ring-yellow-400 animate-pulse";
+    return "shadow-2xl shadow-yellow-500/80 ring-4 ring-yellow-400";
   };
 
   const getBoostButtonVariant = (boostCount: number) => {
@@ -89,6 +94,7 @@ export function WishCard({
         "bg-white/80 backdrop-blur-sm hover:bg-white/90 transition-all duration-200",
         getWishGlow(wish.boosts),
         isAnimating && "animate-pulse",
+        isTopPulsing && "animate-pulse",
         className
       )}
     >

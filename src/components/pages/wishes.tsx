@@ -181,12 +181,25 @@ export default function WishesFeed() {
       await boostWish(wishId, sessionData.token);
       await refreshSessionData();
       await fetchWishesData(activeTab);
-    } catch (error) {
-      console.error("Error boosting wish:", error);
+      
+      // Show success toast
       toast({
-        title: "Error",
-        description: "Failed to boost wish. Please try again.",
-        variant: "destructive",
+        title: "Wish boosted!",
+        description: "You've added power to this wish.",
+      });
+    } catch (error: any) {
+      console.error("Error boosting wish:", error);
+      
+      // Check if it's a rate limit error
+      const isRateLimited = error.message?.includes("60 seconds") || 
+                           error.message?.includes("Rate limited") ||
+                           error.message?.includes("Please wait") ||
+                           error.message?.includes("boost the same wish");
+      
+      toast({
+        title: isRateLimited ? "Please wait" : "Error",
+        description: error.message || "Failed to boost wish. Please try again.",
+        variant: isRateLimited ? "default" : "destructive",
       });
     } finally {
       setBoostingWishId(null);
@@ -301,7 +314,7 @@ export default function WishesFeed() {
           </div>
         ) : (
           <div className="max-w-2xl mx-auto space-y-4">
-            {wishes.map((wish) => (
+            {wishes.map((wish, index) => (
               <WishCard
                 key={wish.id}
                 wish={wish}
@@ -310,6 +323,7 @@ export default function WishesFeed() {
                 isBoosting={boostingWishId === wish.id}
                 showScore={activeTab === 'hot'}
                 showRecentBoosts={activeTab === 'rising'}
+                isTopWish={index === 0}
               />
             ))}
           </div>

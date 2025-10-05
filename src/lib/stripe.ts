@@ -70,12 +70,52 @@ export async function boostWish(wishId: string, who?: string, sessionId?: string
 
     if (error) {
       console.error("Error boosting wish:", error);
+      
+      // Handle specific error types
+      if (error.message?.includes("Rate limited")) {
+        throw new Error("You can only boost the same wish every 60 seconds");
+      }
+      
       throw new Error(error.message || "Failed to boost wish");
     }
 
     return data?.ok === true;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Unexpected error boosting wish:", error);
+    console.error("Error details:", {
+      name: error.name,
+      status: error.status,
+      message: error.message,
+      context: error.context
+    });
+    
+    // Handle HTTP status codes
+    if (error.status === 429) {
+      throw new Error("You can only boost the same wish every 60 seconds");
+    }
+    
+    // Check if it's a Supabase FunctionsHttpError with 429 status
+    if (error.name === 'FunctionsHttpError' && error.status === 429) {
+      throw new Error("You can only boost the same wish every 60 seconds");
+    }
+    
+    // Check for rate limit in the error message
+    if (error.message?.includes("Rate limited") || 
+        error.message?.includes("429") ||
+        error.message?.includes("Too Many Requests")) {
+      throw new Error("You can only boost the same wish every 60 seconds");
+    }
+    
+    // Check for the generic Supabase error message (which is likely a 429)
+    if (error.message?.includes("Edge Function returned a non-2xx status code")) {
+      throw new Error("You can only boost the same wish every 60 seconds");
+    }
+    
+    // For any non-2xx status code, assume it might be rate limiting
+    if (error.name === 'FunctionsHttpError') {
+      throw new Error("You can only boost the same wish every 60 seconds");
+    }
+    
     throw error;
   }
 }
